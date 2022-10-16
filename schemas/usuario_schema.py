@@ -9,6 +9,7 @@ class UsuarioSchemaBase(BaseModel):
     id: Optional[int] = None
     nome: str
     sobrenome: str
+    
     email: EmailStr
     eh_admin: bool = False
 
