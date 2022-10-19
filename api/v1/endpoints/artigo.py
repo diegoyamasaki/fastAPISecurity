@@ -95,7 +95,7 @@ async def delete_artigo(artigo_id: int,
         if artigo_del:
             await session.delete(artigo_del)
             await session.commit()
-            
+
             return Response(status_code=status.HTTP_204_NO_CONTENT)
         else:
             raise HTTPException(
