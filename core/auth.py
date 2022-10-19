@@ -26,7 +26,7 @@ async def autenticar(email: EmailStr, senha: str, db: AsyncSession) -> Optional[
     async with db as session:
         query = select(UsuarioModel).filter(UsuarioModel.email == email)
         result = await session.execute(query)
-        usuario: UsuarioModel = result.scakars().unique().one_or_none()
+        usuario: UsuarioModel = result.scalars().unique().one_or_none()
         if not usuario:
             return None
 

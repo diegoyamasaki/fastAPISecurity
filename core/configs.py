@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     DBBaseModel = declarative_base()
 
     JWT_SECRET: str = 'C394Eb5iosnH7ppFmcxO1Cyc1TA4D2Rjjop0ppevRCg'
-    ALGORITHM: str = 'MS256'
+    ALGORITHM: str = 'HS256'
     # expira em 1 semana = 60 minutos * 24 horas * 7 dias
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 
 
