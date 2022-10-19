@@ -6,15 +6,14 @@ from schemas.artigo_schema import ArtigoSchema
 
 
 class UsuarioSchemaBase(BaseModel):
-    id: Optional[int] = None
+    id: Optional[int]
     nome: str
     sobrenome: str
-    
-    email: EmailStr
-    eh_admin: bool = False
+    email: str
+    eh_admin: Optional[bool]
 
     class Config:
-        orm_mode: True
+        orm_mode = True
 
 
 class UsuarioSchemaCreate(UsuarioSchemaBase):

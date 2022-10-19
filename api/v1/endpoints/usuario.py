@@ -1,6 +1,5 @@
 from typing import List, Optional, AnyStr
 from unittest import result
-from django.shortcuts import HttpResponse
 
 from fastapi import APIRouter, Query, status, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
@@ -9,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.exc import IntegrityError
 
 from models.usuario_model import UsuarioModel
 from schemas.usuario_schema import UsuarioSchemaArtigos, UsuarioSchemaBase, UsuarioSchemaCreate, UsusarioSchemaUp
@@ -18,29 +18,34 @@ from core.auth import autenticar, criar_token_acesso
 
 router = APIRouter()
 
+
 @router.get('/logado', response_model=UsuarioSchemaBase)
 def get_logado(usuario_logado: UsuarioModel = Depends(get_current_user)):
     return usuario_logado
 
 
-@router.post('/', response_model=UsuarioSchemaBase, status_code=status.HTTP_201_CREATED)
-async def post_ususarop(usuario: UsuarioSchemaCreate, db: AsyncSession = Depends(get_session)):
-    novo_usuario: UsuarioModel = UsuarioModel(
-        nome=usuario.nome,
-        sobrenome=usuario.sobrenome,
-        email=usuario.email,
-        senha=gerar_hash_senha(usuario.senha),
-        eh_admin=usuario.eh_admin
-    )
+@router.post('/signup', response_model=UsuarioSchemaBase, status_code=status.HTTP_201_CREATED)
+async def post_ususario(usuario: UsuarioSchemaCreate, db: AsyncSession = Depends(get_session)):
+    try:
+        novo_usuario: UsuarioModel = UsuarioModel(
+            nome=usuario.nome,
+            sobrenome=usuario.sobrenome,
+            email=usuario.email,
+            senha=gerar_hash_senha(usuario.senha),
+            eh_admin=usuario.eh_admin
+        )
+        async with db as session:
+            session.add(novo_usuario)
+            await session.commit()
+            return novo_usuario
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail='Usuario já existe na base')
 
-    async with db as session:
-        session.add(novo_usuario)
-        await session.commit()
-
-        return novo_usuario
 
 @router.get('/', response_model=List[UsuarioSchemaBase])
-async def get_usuario(db:AsyncSession = Depends(get_session)):
+async def get_usuarios(db:AsyncSession = Depends(get_session)):
     async with db as session:
         query = select(UsuarioModel)
         result = await session.execute(query)
@@ -49,17 +54,17 @@ async def get_usuario(db:AsyncSession = Depends(get_session)):
 
         return usuarios
 
+
 @router.get('/{usuario_id}', response_model=UsuarioSchemaArtigos)
 async def get_usuario(usuario_id: int, db:AsyncSession = Depends(get_session)):
     async with db as session:
         query = select(UsuarioModel).filter(UsuarioModel.id == usuario_id)
-        query = await session.execute(query)
-
-        usuario: UsuarioSchemaArtigos = result.scalars().unique().oner_or_none();
+        result = await session.execute(query)
+        usuario: UsuarioSchemaArtigos = result.scalars().unique().one_or_none()
         if usuario:
             return usuario
         else:
-            raise HttpResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Usuario não encontrado')
 
@@ -85,9 +90,10 @@ async def put_usuario(usuario_id: int,usuario: UsusarioSchemaUp, db:AsyncSession
             await session.commit()
             return usuario_up
         else:
-            raise HttpResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Usuario não encontrado')
+
 
 @router.delete('/{usuario_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_usuario(usuario_id: int, db:AsyncSession = Depends(get_session)):
@@ -101,16 +107,17 @@ async def delete_usuario(usuario_id: int, db:AsyncSession = Depends(get_session)
             await session.commit()
             return Response(status_code=status.HTTP_204_NO_CONTENT)
         else:
-            raise HttpResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Usuario não encontrado')
+
 
 @router.post('/login')
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_session)):
     usuario = await autenticar(email=form_data.username, senha=form_data.password, db=db)
 
     if not usuario:
-        raise HttpResponse(status_code=status.HTTP_400_BAD_REQUEST, detail='Dados de acesso incorretos')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Dados de acesso incorretos')
 
     return JSONResponse(
         content={
